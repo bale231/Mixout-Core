@@ -1,0 +1,77 @@
+services:
+  django:
+    build: .
+    container_name: mixoutcore_django
+    command: gunicorn mixoutcore.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongo
+      - kratos
+    environment:
+      - DJANGO_SETTINGS_MODULE=mixoutcore.settings
+
+  mongo:
+    image: mongo:7
+    container_name: mongo_db
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  kratos-migrate:
+    image: oryd/kratos:v1.1.0
+    depends_on:
+      - kratos-postgres
+    environment:
+      - DSN=postgres://kratos:secret@kratos-postgres:5432/kratos?sslmode=disable
+      - IDENTITY_SCHEMAS_0_ID=default
+      - IDENTITY_SCHEMAS_0_URL=base64://ewogICIkaWQiOiAiaHR0cHM6Ly9zY2hlbWFzLm9yeS5zaC9wcmVzZXRzL2tyYXRvcy9lbWFpbC1wYXNzd29yZC92MSIsCiAgIiRzY2hlbWEiOiAiaHR0cDovL2pzb24tc2NoZW1hLm9yZy9kcmFmdC0wNy9zY2hlbWEjIiwKICAidGl0bGUiOiAiUGVyc29uIiwKICAidHlwZSI6ICJvYmplY3QiLAogICJwcm9wZXJ0aWVzIjogewogICAgInRyYWl0cyI6IHsKICAgICAgInR5cGUiOiAib2JqZWN0IiwKICAgICAgInByb3BlcnRpZXMiOiB7CiAgICAgICAgImVtYWlsIjogewogICAgICAgICAgInR5cGUiOiAic3RyaW5nIiwKICAgICAgICAgICJmb3JtYXQiOiAiZW1haWwiCiAgICAgICAgfQogICAgICB9LAogICAgICAicmVxdWlyZWQiOiBbImVtYWlsIl0sCiAgICAgICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlCiAgICB9CiAgfQp9
+    command: migrate sql -e --yes
+
+  kratos:
+    image: oryd/kratos:v1.1.0
+    depends_on:
+      - kratos-postgres
+    environment:
+      - DSN=postgres://kratos:secret@kratos-postgres:5432/kratos?sslmode=disable
+      - SERVE_PUBLIC_BASE_URL=http://kratos:4433/
+      - SERVE_ADMIN_BASE_URL=http://kratos:4434/
+      - SELFSERVICE_DEFAULT_BROWSER_RETURN_URL=http://localhost:8000/
+      - SELFSERVICE_FLOWS_LOGIN_UI_URL=http://localhost:4455/login
+      - SELFSERVICE_FLOWS_REGISTRATION_UI_URL=http://localhost:4455/registration
+      - IDENTITY_SCHEMAS_0_ID=default
+      - IDENTITY_SCHEMAS_0_URL=base64://ewogICIkaWQiOiAiaHR0cHM6Ly9zY2hlbWFzLm9yeS5zaC9wcmVzZXRzL2tyYXRvcy9lbWFpbC1wYXNzd29yZC92MSIsCiAgIiRzY2hlbWEiOiAiaHR0cDovL2pzb24tc2NoZW1hLm9yZy9kcmFmdC0wNy9zY2hlbWEjIiwKICAidGl0bGUiOiAiUGVyc29uIiwKICAidHlwZSI6ICJvYmplY3QiLAogICJwcm9wZXJ0aWVzIjogewogICAgInRyYWl0cyI6IHsKICAgICAgInR5cGUiOiAib2JqZWN0IiwKICAgICAgInByb3BlcnRpZXMiOiB7CiAgICAgICAgImVtYWlsIjogewogICAgICAgICAgInR5cGUiOiAic3RyaW5nIiwKICAgICAgICAgICJmb3JtYXQiOiAiZW1haWwiCiAgICAgICAgfQogICAgICB9LAogICAgICAicmVxdWlyZWQiOiBbImVtYWlsIl0sCiAgICAgICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlCiAgICB9CiAgfQp9
+      - COURIER_SMTP_CONNECTION_URI=smtps://test:test@mymail.local:587/?skip_ssl_verify=true
+    ports:
+      - "4433:4433"
+      - "4434:4434"
+
+  kratos-postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=kratos
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=kratos
+    ports:
+      - "5433:5432"
+    volumes:
+      - kratos_pg_data:/var/lib/postgresql/data
+
+  kratos-ui:
+      image: oryd/kratos-selfservice-ui-node:v0.10.1
+      environment:
+        - KRATOS_PUBLIC_URL=http://localhost:4433/
+        - KRATOS_BROWSER_URL=http://localhost:4433/
+        - PORT=4455
+      ports:
+        - "4455:4455"
+      depends_on:
+        - kratos
+
+volumes:
+  mongo_data:
+  kratos_pg_data:
