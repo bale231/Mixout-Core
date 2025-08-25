@@ -1,83 +1,54 @@
 {
-  "$id": "https://example.com/identity.schema.json",
+  "$id": "https://schemas.ory.sh/kratos/identity.mixout.schema.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "User",
+  "title": "Mixout Identity",
   "type": "object",
+  "additionalProperties": false,
   "properties": {
     "traits": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "email": { "type": "string", "format": "email" },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "ory.sh/kratos": {
+            "credentials": { "password": { "identifier": true } },
+            "recovery":     { "via": "email" },
+            "verification": { "via": "email" }
+          }
+        },
         "goals": {
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["discoverStyle", "feelConfident", "lookAttractive", "spendLess", "saveTime", "other"]
-          }
+            "enum": ["discoverStyle","feelConfident","lookAttractive","spendLess","saveTime","other"]
+          },
+          "uniqueItems": true,
+          "default": []
         },
-        "knowingStyles": {
-          "type": ["string", "null"],
-          "enum": ["yes", "no", "partially", null]
-        },
-        "feelingConfident": {
-          "type": ["string", "null"],
-          "enum": ["yes", "no", "partially", null]
-        },
-        "wardrobeWeared": {
-          "type": ["string", "null"],
-          "enum": ["10%", "25%", "50%", "75%", "90%+", null]
-        },
-        "wastedResources": {
-          "type": "string",
-          "enum": ["allTimes", "oftenTimes", "fewTimes", "never"]
-        },
-        "feelingSecure": {
-          "type": "string",
-          "enum": ["yes", "no", "notSure"]
-        },
-        "feelingAnxious": {
-          "type": "string",
-          "enum": ["struggle", "depends", "rarely", "no"]
-        },
-        "ages": {
-          "type": "string",
-          "enum": ["18-29", "30-39", "40-49", "50+"]
-        },
-        "genders": {
-          "type": "string",
-          "enum": ["male", "female", "other"]
-        },
-        "heightUnit": {
-          "type": "string",
-          "enum": ["cm", "inch"]
-        },
-        "weightUnit": {
-          "type": "string",
-          "enum": ["lb", "kg"]
-        },
-        "bodyShapes": {
-          "type": "string",
-          "enum": ["hourglass", "bottomHourglass", "topHourglass", "spoon", "invertedTriangle", "triangle", "rectangle"]
-        },
-        "eyeColors": {
-          "type": "string",
-          "enum": ["brightBlue", "lightBlue", "brightGreen", "lightGreen", "gray", "amber", "lightHazel", "darkHazel", "lightBrown", "darkBrown", "mutedBrown", "black"]
-        },
-        "hairColors": {
-          "type": "string",
-          "enum": ["ashBlonde", "goldenBlonde", "ashBrown", "coolBrown", "brown", "warmBrown", "strawberryBlonde", "copper", "auburn", "darkAuburn", "brownBlack", "black"]
-        },
-        "skinTones": {
-          "type": "string",
-          "enum": ["coolPale", "porcelain", "ivory", "peach", "rosyBeige", "neutralBeige", "goldenBeige", "olive", "tan", "bronze", "chocolate", "espresso"]
-        },
-        "aestheticStyles": {
-          "type": "string",
-          "enum": ["casual", "glam", "boho", "romantic", "minimalist", "classic", "street", "preppy", "edgy", "sporty", "Y2K", "eclectic"]
-        }
+        "knowingStyles":    { "type": ["string","null"], "enum": ["yes","no","partially", null] },
+        "feelingConfident": { "type": ["string","null"], "enum": ["yes","no","partially", null] },
+        "wardrobeWeared":   { "type": ["string","null"], "enum": ["10%","25%","50%","75%","90%+", null] },
+        "wastedResources":  { "type": "string", "enum": ["allTimes","oftenTimes","fewTimes","never"] },
+        "feelingSecure":    { "type": "string", "enum": ["yes","no","notSure"] },
+        "feelingAnxious":   { "type": "string", "enum": ["struggle","depends","rarely","no"] },
+        "ages":             { "type": "string", "enum": ["18-29","30-39","40-49","50+"] },
+        "genders":          { "type": "string", "enum": ["male","female","other"] },
+        "heightUnit":       { "type": "string", "enum": ["cm","inch"] },
+        "weightUnit":       { "type": "string", "enum": ["lb","kg"] },
+        "bodyShapes":       { "type": "string", "enum": ["hourglass","bottomHourglass","topHourglass","spoon","invertedTriangle","triangle","rectangle"] },
+        "eyeColors":        { "type": "string", "enum": ["brightBlue","lightBlue","brightGreen","lightGreen","gray","amber","lightHazel","darkHazel","lightBrown","darkBrown","mutedBrown","black"] },
+        "hairColors":       { "type": "string", "enum": ["ashBlonde","goldenBlonde","ashBrown","coolBrown","brown","warmBrown","strawberryBlonde","copper","auburn","darkAuburn","brownBlack","black"] },
+        "skinTones":        { "type": "string", "enum": ["coolPale","porcelain","ivory","peach","rosyBeige","neutralBeige","goldenBeige","olive","tan","bronze","chocolate","espresso"] },
+        "aestheticStyles":  { "type": "string", "enum": ["casual","glam","boho","romantic","minimalist","classic","street","preppy","edgy","sporty","Y2K","eclectic"] }
       },
-      "required": ["email"]
+      "required": [
+        "email",
+        "wastedResources","feelingSecure","feelingAnxious",
+        "ages","genders","heightUnit","weightUnit",
+        "bodyShapes","eyeColors","hairColors","skinTones","aestheticStyles"
+      ]
     }
-  },
-  "required": ["traits"]
+  }
 }

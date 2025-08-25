@@ -92,7 +92,7 @@ class UserStyleProfile(Document):
 
     def to_dict(self):
         return {
-            "id": str(self.id),
+            "id": str(self.id), # type: ignore
             "kratos_identity_id": self.kratos_identity_id,
             "goals": self.goals,
             "knowingStyles": self.knowingStyles,
@@ -110,6 +110,6 @@ class UserStyleProfile(Document):
             "hairColors": self.hairColors,
             "skinTones": self.skinTones,
             "aestheticStyles": self.aestheticStyles,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
+            "created_at": self.created_at.isoformat(), # type: ignore
+            "updated_at": self.updated_at.isoformat(), # type: ignore
         }

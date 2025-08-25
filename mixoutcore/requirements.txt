@@ -2,3 +2,4 @@ django
 mongoengine
 gunicorn
 requests
+whitenoise>=6.7
