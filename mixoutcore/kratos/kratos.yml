@@ -32,6 +32,22 @@ selfservice:
       ui_url: http://localhost:4455/login
     registration:
       ui_url: http://localhost:4455/registration
+      after:
+        hooks:
+          - hook: web_hook
+            config:
+              url: http://django:8000/kratos/hooks/registration
+              method: POST
+              body: file:///etc/config/kratos/registration.jsonnet
+              response:
+                parse: false     # esegui DOPO che l’identità è stata creata
+                ignore: true     # non bloccare il flow se il webhook fallisce
+              auth:
+                type: api_key
+                config:
+                  in: header
+                  name: X-Kratos-Webhook-Token
+                  value: dev-secret-123
     settings:
       ui_url: http://localhost:4455/settings
     recovery:

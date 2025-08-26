@@ -13,6 +13,7 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=mixoutcore.settings
       - KRATOS_ADMIN_URL=http://kratos:4434
+      - KRATOS_WEBHOOK_TOKEN=dev-secret-123
 
 
   mongo:
@@ -90,6 +91,7 @@ services:
       - LOG_LEAK_SENSITIVE_VALUES=true
     volumes:
       - ./kratos/identity.schema.json:/etc/config/kratos/identity.schema.json:ro
+      - ./kratos/registration.jsonnet:/etc/config/kratos/registration.jsonnet:ro
     ports:
       - "4433:4433"
       - "4434:4434"
