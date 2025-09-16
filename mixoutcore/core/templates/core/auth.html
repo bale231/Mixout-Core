@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <link rel="shortcut icon" href="../../img/icon-unknown-alt.svg" type="image/x-icon">
-    <title>Mixout - Registrazione</title>
+    <title>Mixout - Login/Registrations</title>
     <style>
         * {
             margin: 0;
@@ -298,7 +296,7 @@
             <div class="step-counter">
                 <span id="current-step">1</span> / 5
             </div>
-            <h1>🎵 Mixout</h1>
+            <h1>👕 Mixout</h1>
             <p class="subtitle">Crea il tuo profilo personale</p>
             <div class="progress-bar">
                 <div class="progress-fill" id="progress"></div>
@@ -860,7 +858,8 @@
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json'
-                    }
+                    },
+                    credentials: 'include'  // ← Aggiungi anche qui
                 });
                 
                 if (!response.ok) {
@@ -919,17 +918,14 @@
                 console.log('Final registration data:', submitData);
                 console.log('Traits object:', traits);
                 
-                // Cambia solo l'URL da Kratos a Django
-                const response = await fetch('/api/register/', {
+                const response = await fetch(`${KRATOS_API}/self-service/registration?flow=${currentFlow.id}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({
-                        traits: traits,
-                        password: otherData.password
-                    })
+                    credentials: 'include',  // ← Aggiungi questa riga
+                    body: JSON.stringify(submitData)
                 });
                 
                 const result = await response.json();
@@ -937,19 +933,25 @@
                 
                 if (response.ok) {
                     showSuccess('🎉 Registrazione completata con successo! Benvenuto in Mixout!');
+                    
+                    // Clear form and redirect after delay
                     setTimeout(() => {
                         window.location.href = 'http://localhost:8000/api/auth/callback';
                     }, 2000);
                 } else {
-                    // Gestisci gli errori del backend
-                    const result = await response.json();
-                    
-                    if (result.error) {
-                        showError(result.error);
-                    } else if (result.errors && result.errors.length > 0) {
-                        showError(result.errors.join(', '));
+                    // Handle Kratos errors
+                    if (result.ui && result.ui.messages) {
+                        const errorMsg = result.ui.messages.map(msg => msg.text).join(', ');
+                        showError(errorMsg);
+                    } else if (result.error) {
+                        showError(result.error.message || 'Errore durante la registrazione');
                     } else {
                         showError('Errore durante la registrazione. Controlla i dati inseriti.');
+                    }
+                    
+                    // Update flow if provided
+                    if (result.id) {
+                        currentFlow = result;
                     }
                 }
                 
@@ -966,26 +968,15 @@
                 showLoading(true);
                 hideMessages();
                 
-                if (!currentFlow) {
-                    throw new Error('Flow non inizializzato');
-                }
+                console.log('Login data:', formData);
                 
-                const submitData = {
-                    flow: currentFlow.id,
-                    method: 'password',
-                    ...formData
-                };
-                
-                console.log('Login data:', submitData);
-                
-                const response = await fetch(`${KRATOS_API}/self-service/login?flow=${currentFlow.id}`, {
+                const response = await fetch('/api/login/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    credentials: 'include',  // ← E anche qui
-                    body: JSON.stringify(submitData)
+                    body: JSON.stringify(formData)
                 });
                 
                 const result = await response.json();
@@ -994,18 +985,13 @@
                 if (response.ok) {
                     showSuccess('Login effettuato con successo!');
                     setTimeout(() => {
-                        window.location.href = 'http://localhost:8000/api/auth/callback';
+                        window.location.href = 'http://localhost:8000/auth/callback/';
                     }, 1500);
                 } else {
-                    if (result.ui && result.ui.messages) {
-                        const errorMsg = result.ui.messages.map(msg => msg.text).join(', ');
-                        showError(errorMsg);
+                    if (result.error) {
+                        showError(result.error);
                     } else {
-                        showError(result.error?.message || 'Credenziali non valide');
-                    }
-                    
-                    if (result.id) {
-                        currentFlow = result;
+                        showError('Credenziali non valide');
                     }
                 }
                 

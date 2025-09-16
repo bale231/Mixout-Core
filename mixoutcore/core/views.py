@@ -7,7 +7,6 @@ from django.conf import settings
 from django.http import JsonResponse, HttpRequest
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
 from django.core.exceptions import ValidationError
 from django.shortcuts import render
 
@@ -27,23 +26,6 @@ ALLOWED_FIELDS = {
 WEBHOOK_TOKEN = getattr(settings, "KRATOS_WEBHOOK_TOKEN", "dev-secret-123")
 
 # === Utility Functions ===
-@csrf_exempt
-def debug_register(request):
-    try:
-        if request.method == 'POST':
-            data = json.loads(request.body)
-            return JsonResponse({
-                'status': 'success',
-                'received_data': data,
-                'message': 'Debug endpoint working'
-            })
-        else:
-            return JsonResponse({'error': 'Method not allowed'}, status=405)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-    
-@csrf_exempt
-@require_http_methods(["POST"])
 def proxy_to_kratos(path, method='GET', data=None, headers=None):
     """Fa proxy di una richiesta verso Kratos"""
     kratos_url = f"{settings.KRATOS_ADMIN_URL.rstrip('/')}/{path.lstrip('/')}"
@@ -69,107 +51,219 @@ def proxy_to_kratos(path, method='GET', data=None, headers=None):
         return None
 
 # === Auth UI View ===
-@csrf_exempt
-def auth_ui(request):
-    return render(request, 'core/auth.html')
+@method_decorator(csrf_exempt, name="dispatch")
+class AuthUIView(View):
+    def get(self, request):
+        return render(request, 'core/auth.html')
 
-# === Proxy Views for Kratos (Per frontend semplice) ===
-@csrf_exempt
-def proxy_registration(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
-        
-    try:
-        # Parse i dati dal frontend
-        data = json.loads(request.body)
-        
-        # Log per debug
-        logger.info(f"Received registration data: {data}")
-        
-        # Usa requests.Session per mantenere i cookie
-        session = requests.Session()
-        
-        # 1. Inizializza il flow di registrazione
-        flow_response = session.get(
-            'http://kratos:4433/self-service/registration/browser',
-            headers={'Accept': 'application/json'}
-        )
-        
-        if flow_response.status_code != 200:
-            logger.error(f"Failed to initialize flow: {flow_response.status_code} - {flow_response.text}")
-            return JsonResponse({'error': 'Failed to initialize flow'}, status=400)
+# === Proxy Views (Per UI personalizzata) ===
+@method_decorator(csrf_exempt, name="dispatch")
+class ProxyRegistrationView(View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            logger.info(f"Received registration data: {data}")
             
-        flow_data = flow_response.json()
-        logger.info(f"Flow initialized: {flow_data['id']}")
-        
-        # 2. Prepara i dati per Kratos
-        registration_data = {
-            'flow': flow_data['id'],
-            'method': 'password',
-            'traits': data.get('traits', {}),
-            'password': data.get('password', '')
-        }
-        
-        logger.info(f"Sending to Kratos: {registration_data}")
-        
-        # 3. Invia la registrazione usando la stessa sessione
-        register_response = session.post(
-            f'http://kratos:4433/self-service/registration?flow={flow_data["id"]}',
-            json=registration_data,
-            headers={
-                'Content-Type': 'application/json', 
-                'Accept': 'application/json'
+            session = requests.Session()
+            
+            # 1. Inizializza flow registrazione
+            flow_response = session.get(
+                'http://kratos:4433/self-service/registration/browser',
+                headers={'Accept': 'application/json'}
+            )
+            
+            if flow_response.status_code != 200:
+                logger.error(f"Failed to initialize flow: {flow_response.status_code}")
+                return JsonResponse({'error': 'Failed to initialize flow'}, status=400)
+            
+            flow_data = flow_response.json()
+            logger.info(f"Flow initialized: {flow_data['id']}")
+            
+            # 2. Estrai CSRF token
+            csrf_token = None
+            for node in flow_data.get('ui', {}).get('nodes', []):
+                if node.get('attributes', {}).get('name') == 'csrf_token':
+                    csrf_token = node.get('attributes', {}).get('value')
+                    break
+            
+            if not csrf_token:
+                logger.error("CSRF token not found in flow")
+                return JsonResponse({'error': 'CSRF token not found'}, status=400)
+            
+            logger.info(f"Found CSRF token: {csrf_token[:20]}...")
+            
+            # 3. Prepara dati per Kratos
+            registration_data = {
+                'flow': flow_data['id'],
+                'method': 'password',
+                'csrf_token': csrf_token,
+                'password': data.get('password', ''),
+                **{f"traits.{k}": v for k, v in data.get('traits', {}).items()}
             }
-        )
-        
-        logger.info(f"Kratos response: {register_response.status_code}")
-        
-        if register_response.status_code == 200:
-            return JsonResponse({'success': True, 'message': 'Registrazione completata!'})
-        else:
-            try:
-                error_data = register_response.json()
-                logger.error(f"Kratos error: {error_data}")
-                
-                # Estrai messaggi di errore user-friendly da Kratos
-                user_messages = []
-                ui_messages = error_data.get('ui', {}).get('messages', [])
-                
-                for message in ui_messages:
-                    message_id = message.get('id')
-                    message_text = message.get('text', '')
-                    
-                    # Traduci i messaggi di errore comuni in italiano
-                    if message_id == 4000007 or 'exists already' in message_text:
-                        user_messages.append('Un account con questa email esiste già. Prova con un\'altra email.')
-                    elif 'password' in message_text.lower() and 'policy' in message_text.lower():
-                        user_messages.append('La password non rispetta i criteri di sicurezza.')
-                    elif 'email' in message_text.lower() and 'invalid' in message_text.lower():
-                        user_messages.append('L\'indirizzo email non è valido.')
-                    else:
-                        # Usa il messaggio originale se non abbiamo una traduzione
-                        user_messages.append(message_text)
-                
-                # Se non ci sono messaggi specifici, usa un messaggio generico
-                if not user_messages:
-                    user_messages.append('Errore durante la registrazione. Controlla i dati inseriti.')
-                
-                return JsonResponse({
-                    'success': False,
-                    'error': user_messages[0],  # Il primo messaggio per l'UI
-                    'errors': user_messages,    # Tutti i messaggi se servono
-                }, status=400)
-                
-            except:
-                logger.error(f"Kratos error (raw): {register_response.text}")
-                return JsonResponse({
-                    'success': False, 
-                    'error': 'Errore durante la registrazione. Riprova.'
-                }, status=400)
             
-    except Exception as e:
-        logger.error(f"Exception in proxy_registration: {str(e)}")
-        return JsonResponse({'error': str(e)}, status=500)
+            # 4. Invia registrazione
+            action_url = flow_data.get('ui', {}).get('action', '').replace('localhost:4433', 'kratos:4433')
+            
+            register_response = session.post(
+                action_url,
+                data=registration_data,
+                headers={
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            )
+            
+            logger.info(f"Kratos response: {register_response.status_code}")
+            
+            if register_response.status_code == 200:
+                return JsonResponse({'success': True, 'message': 'Registrazione completata!'})
+            else:
+                try:
+                    error_data = register_response.json()
+                    logger.error(f"Kratos error: {error_data}")
+                    
+                    # Gestisci errori specifici
+                    user_messages = []
+                    
+                    if error_data.get('error', {}).get('id') == 'security_csrf_violation':
+                        user_messages.append('Errore di sicurezza. Ricarica la pagina e riprova.')
+                    else:
+                        ui_messages = error_data.get('ui', {}).get('messages', [])
+                        for message in ui_messages:
+                            message_id = message.get('id')
+                            message_text = message.get('text', '')
+                            
+                            if message_id == 4000007 or 'exists already' in message_text:
+                                user_messages.append('Un account con questa email esiste già. Prova con un\'altra email.')
+                            elif 'password' in message_text.lower() and 'policy' in message_text.lower():
+                                user_messages.append('La password non rispetta i criteri di sicurezza.')
+                            elif 'email' in message_text.lower() and 'invalid' in message_text.lower():
+                                user_messages.append('L\'indirizzo email non è valido.')
+                            else:
+                                user_messages.append(message_text)
+                    
+                    if not user_messages:
+                        user_messages.append('Errore durante la registrazione. Controlla i dati inseriti.')
+                    
+                    return JsonResponse({
+                        'success': False,
+                        'error': user_messages[0],
+                        'errors': user_messages,
+                    }, status=400)
+                    
+                except Exception as json_error:
+                    logger.error(f"Failed to parse Kratos error: {json_error}")
+                    return JsonResponse({
+                        'success': False, 
+                        'error': 'Errore durante la registrazione. Riprova.'
+                    }, status=400)
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in request: {e}")
+            return JsonResponse({'error': 'Dati non validi'}, status=400)
+        except Exception as e:
+            logger.error(f"Exception in proxy_registration: {str(e)}")
+            return JsonResponse({'error': 'Errore del server. Riprova.'}, status=500)
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ProxyLoginView(View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            logger.info(f"Received login data: {data.get('identifier', 'no email')}")
+            
+            session = requests.Session()
+            
+            # 1. Inizializza flow login
+            flow_response = session.get(
+                'http://kratos:4433/self-service/login/browser',
+                headers={'Accept': 'application/json'}
+            )
+            
+            if flow_response.status_code != 200:
+                logger.error(f"Failed to initialize login flow: {flow_response.status_code}")
+                return JsonResponse({'error': 'Failed to initialize login flow'}, status=400)
+            
+            flow_data = flow_response.json()
+            logger.info(f"Login flow initialized: {flow_data['id']}")
+            
+            # 2. Estrai CSRF token
+            csrf_token = None
+            for node in flow_data.get('ui', {}).get('nodes', []):
+                if node.get('attributes', {}).get('name') == 'csrf_token':
+                    csrf_token = node.get('attributes', {}).get('value')
+                    break
+            
+            if not csrf_token:
+                logger.error("CSRF token not found in login flow")
+                return JsonResponse({'error': 'CSRF token not found'}, status=400)
+            
+            logger.info(f"Found login CSRF token: {csrf_token[:20]}...")
+            
+            # 3. Prepara dati login
+            login_data = {
+                'flow': flow_data['id'],
+                'method': 'password',
+                'csrf_token': csrf_token,
+                'identifier': data.get('identifier', ''),
+                'password': data.get('password', '')
+            }
+            
+            # 4. Invia login
+            action_url = flow_data.get('ui', {}).get('action', '').replace('localhost:4433', 'kratos:4433')
+            
+            login_response = session.post(
+                action_url,
+                data=login_data,
+                headers={
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            )
+            
+            logger.info(f"Kratos login response: {login_response.status_code}")
+            
+            if login_response.status_code == 200:
+                return JsonResponse({'success': True, 'message': 'Login effettuato con successo!'})
+            else:
+                try:
+                    error_data = login_response.json()
+                    logger.error(f"Kratos login error: {error_data}")
+                    
+                    # Gestisci errori login
+                    user_messages = []
+                    
+                    if error_data.get('error', {}).get('id') == 'security_csrf_violation':
+                        user_messages.append('Errore di sicurezza. Ricarica la pagina e riprova.')
+                    else:
+                        ui_messages = error_data.get('ui', {}).get('messages', [])
+                        for message in ui_messages:
+                            message_text = message.get('text', '')
+                            if 'credentials are invalid' in message_text or 'invalid' in message_text.lower():
+                                user_messages.append('Email o password non corretti.')
+                            elif 'account does not exist' in message_text.lower():
+                                user_messages.append('Account non trovato. Verifica l\'email inserita.')
+                            else:
+                                user_messages.append(message_text)
+                    
+                    if not user_messages:
+                        user_messages.append('Errore durante il login. Verifica le credenziali.')
+                    
+                    return JsonResponse({
+                        'success': False,
+                        'error': user_messages[0]
+                    }, status=400)
+                    
+                except Exception as json_error:
+                    logger.error(f"Failed to parse login error: {json_error}")
+                    return JsonResponse({
+                        'success': False, 
+                        'error': 'Errore durante il login. Riprova.'
+                    }, status=400)
+                
+        except Exception as e:
+            logger.error(f"Exception in proxy_login: {str(e)}")
+            return JsonResponse({'error': 'Errore del server. Riprova.'}, status=500)
 
 # === Webhook Views ===
 @method_decorator(csrf_exempt, name="dispatch")
@@ -199,7 +293,7 @@ class KratosRegistrationHookView(View):
         logger.info(f"Webhook registrazione: {identity_id} - {email}")
         return JsonResponse({"ok": True, "kratos_id": obj.kratos_id}, status=200)
 
-# === Auth API Views (Nuove) ===
+# === Auth API Views (Per frontend avanzati) ===
 @method_decorator(csrf_exempt, name="dispatch")
 class LoginView(View):
     """Handle login flow via Kratos API"""
@@ -306,7 +400,6 @@ class RegistrationView(View):
             if not flow_id:
                 return JsonResponse({'error': 'Flow ID richiesto'}, status=400)
             
-            # Prepara i dati traits per Kratos
             traits_data = {
                 'email': data.get('email'),
                 'goals': data.get('goals', []),
@@ -428,7 +521,7 @@ class CallbackView(View):
         """Gestisce i callback da Kratos"""
         return JsonResponse({'status': 'callback_received'})
 
-# === Existing Views (Mantenute) ===
+# === User API Views (Esistenti) ===
 @method_decorator(csrf_exempt, name="dispatch")
 @kratos_required_class_based
 class WhoAmIView(View):
@@ -445,7 +538,7 @@ class WhoAmIView(View):
 @kratos_required_class_based
 class RegisterDetailsView(View):
     def get(self, request: HttpRequest):
-        identity_id = request.kratos_identity_id # pyright: ignore[reportAttributeAccessIssue]
+        identity_id = request.kratos_identity_id # type: ignore
         obj = UserStyleProfile.objects.filter(kratos_identity_id=identity_id).first()
         if not obj:
             return JsonResponse({"ok": True, "profile": None}, status=200)
@@ -469,7 +562,7 @@ class RegisterDetailsView(View):
                 setattr(obj, k, v)
 
         try:
-            obj.full_clean()  # valida choices/required
+            obj.full_clean()
             obj.save()
         except ValidationError as e:
             return JsonResponse({"ok": False, "error": e.message_dict or e.messages}, status=400)
