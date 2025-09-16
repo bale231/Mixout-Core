@@ -102,31 +102,17 @@ def proxy_registration(request):
         flow_data = flow_response.json()
         logger.info(f"Flow initialized: {flow_data['id']}")
         
-        # 2. Estrai il CSRF token dal flow
-        csrf_token = None
-        for node in flow_data.get('ui', {}).get('nodes', []):
-            if node.get('attributes', {}).get('name') == 'csrf_token':
-                csrf_token = node.get('attributes', {}).get('value')
-                break
-        
-        if not csrf_token:
-            logger.error("CSRF token not found in flow")
-            return JsonResponse({'error': 'CSRF token not found'}, status=400)
-        
-        logger.info(f"Found CSRF token: {csrf_token}")
-        
-        # 3. Prepara i dati per Kratos con CSRF token
+        # 2. Prepara i dati per Kratos
         registration_data = {
             'flow': flow_data['id'],
             'method': 'password',
             'traits': data.get('traits', {}),
-            'password': data.get('password', ''),
-            'csrf_token': csrf_token  # ← Aggiungi questo
+            'password': data.get('password', '')
         }
         
-        logger.info(f"Sending to Kratos with CSRF: {registration_data}")
+        logger.info(f"Sending to Kratos: {registration_data}")
         
-        # 4. Invia la registrazione usando la stessa sessione
+        # 3. Invia la registrazione usando la stessa sessione
         register_response = session.post(
             f'http://kratos:4433/self-service/registration?flow={flow_data["id"]}',
             json=registration_data,
@@ -144,10 +130,42 @@ def proxy_registration(request):
             try:
                 error_data = register_response.json()
                 logger.error(f"Kratos error: {error_data}")
-                return JsonResponse({'error': error_data}, status=register_response.status_code)
+                
+                # Estrai messaggi di errore user-friendly da Kratos
+                user_messages = []
+                ui_messages = error_data.get('ui', {}).get('messages', [])
+                
+                for message in ui_messages:
+                    message_id = message.get('id')
+                    message_text = message.get('text', '')
+                    
+                    # Traduci i messaggi di errore comuni in italiano
+                    if message_id == 4000007 or 'exists already' in message_text:
+                        user_messages.append('Un account con questa email esiste già. Prova con un\'altra email.')
+                    elif 'password' in message_text.lower() and 'policy' in message_text.lower():
+                        user_messages.append('La password non rispetta i criteri di sicurezza.')
+                    elif 'email' in message_text.lower() and 'invalid' in message_text.lower():
+                        user_messages.append('L\'indirizzo email non è valido.')
+                    else:
+                        # Usa il messaggio originale se non abbiamo una traduzione
+                        user_messages.append(message_text)
+                
+                # Se non ci sono messaggi specifici, usa un messaggio generico
+                if not user_messages:
+                    user_messages.append('Errore durante la registrazione. Controlla i dati inseriti.')
+                
+                return JsonResponse({
+                    'success': False,
+                    'error': user_messages[0],  # Il primo messaggio per l'UI
+                    'errors': user_messages,    # Tutti i messaggi se servono
+                }, status=400)
+                
             except:
                 logger.error(f"Kratos error (raw): {register_response.text}")
-                return JsonResponse({'error': 'Registration failed'}, status=register_response.status_code)
+                return JsonResponse({
+                    'success': False, 
+                    'error': 'Errore durante la registrazione. Riprova.'
+                }, status=400)
             
     except Exception as e:
         logger.error(f"Exception in proxy_registration: {str(e)}")

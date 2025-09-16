@@ -937,25 +937,19 @@
                 
                 if (response.ok) {
                     showSuccess('🎉 Registrazione completata con successo! Benvenuto in Mixout!');
-                    
-                    // Clear form and redirect after delay
                     setTimeout(() => {
                         window.location.href = 'http://localhost:8000/api/auth/callback';
                     }, 2000);
                 } else {
-                    // Handle Kratos errors
-                    if (result.ui && result.ui.messages) {
-                        const errorMsg = result.ui.messages.map(msg => msg.text).join(', ');
-                        showError(errorMsg);
-                    } else if (result.error) {
-                        showError(result.error.message || 'Errore durante la registrazione');
+                    // Gestisci gli errori del backend
+                    const result = await response.json();
+                    
+                    if (result.error) {
+                        showError(result.error);
+                    } else if (result.errors && result.errors.length > 0) {
+                        showError(result.errors.join(', '));
                     } else {
                         showError('Errore durante la registrazione. Controlla i dati inseriti.');
-                    }
-                    
-                    // Update flow if provided
-                    if (result.id) {
-                        currentFlow = result;
                     }
                 }
                 
