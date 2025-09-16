@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="shortcut icon" href="../../img/icon-unknown-alt.svg" type="image/x-icon">
+    <title>Mixout - Registrazione</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            width: 100%;
+            max-width: 500px;
+            min-height: 600px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 30px 20px;
+            position: relative;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header .subtitle {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .progress-bar {
+            background: rgba(255, 255, 255, 0.2);
+            height: 4px;
+            border-radius: 2px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            background: white;
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+            width: 20%;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            background: none;
+            font-size: 16px;
+        }
+        
+        .tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .form-container {
+            padding: 30px;
+            min-height: 400px;
+        }
+        
+        .step {
+            display: none;
+        }
+        
+        .step.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .step-title {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .step-description {
+            color: #666;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .checkbox-item:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .checkbox-item input[type="checkbox"] {
+            margin-right: 10px;
+            width: auto;
+        }
+        
+        .checkbox-item.checked {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .radio-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .radio-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .radio-item:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .radio-item input[type="radio"] {
+            margin-right: 10px;
+            width: auto;
+        }
+        
+        .radio-item.checked {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e1e5e9;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #5a6fd8;
+        }
+        
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #666;
+            border: 1px solid #e1e5e9;
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background: #e9ecef;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #fcc;
+        }
+        
+        .success {
+            background: #efe;
+            color: #3c3;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #cfc;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .step-counter {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="step-counter">
+                <span id="current-step">1</span> / 5
+            </div>
+            <h1>🎵 Mixout</h1>
+            <p class="subtitle">Crea il tuo profilo personale</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress"></div>
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('login')">Accedi</button>
+            <button class="tab" onclick="showTab('register')">Registrati</button>
+        </div>
+        
+        <div class="form-container">
+            <div id="error-message" class="error hidden"></div>
+            <div id="success-message" class="success hidden"></div>
+            <div id="loading" class="loading hidden">Caricamento...</div>
+            
+            <!-- Login Form -->
+            <form id="login-form">
+                <div class="step-title">Bentornato!</div>
+                <div class="step-description">Accedi al tuo account Mixout</div>
+                
+                <div class="form-group">
+                    <label for="login-email">Email</label>
+                    <input type="email" id="login-email" name="identifier" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" name="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Accedi</button>
+            </form>
+            
+            <!-- Registration Multi-Step Form -->
+            <div id="register-form" class="hidden">
+                <!-- Step 1: Basic Info -->
+                <div class="step active" id="step-1">
+                    <div class="step-title">Informazioni di base</div>
+                    <div class="step-description">Iniziamo con le informazioni essenziali</div>
+                    
+                    <div class="form-group">
+                        <label for="email">Email *</label>
+                        <input type="email" id="email" name="traits.email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password *</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                </div>
+                
+                <!-- Step 2: Goals & Preferences -->
+                <div class="step" id="step-2">
+                    <div class="step-title">I tuoi obiettivi</div>
+                    <div class="step-description">Cosa speri di ottenere con Mixout?</div>
+                    
+                    <div class="form-group">
+                        <label>Seleziona i tuoi obiettivi:</label>
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="goal-1" value="discoverStyle">
+                                <label for="goal-1">Scoprire il mio stile</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="goal-2" value="feelConfident">
+                                <label for="goal-2">Sentirmi più sicuro/a</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="goal-3" value="lookAttractive">
+                                <label for="goal-3">Apparire più attraente</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="goal-4" value="spendLess">
+                                <label for="goal-4">Spendere meno</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="goal-5" value="saveTime">
+                                <label for="goal-5">Risparmiare tempo</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="goal-6" value="other">
+                                <label for="goal-6">Altro</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="knowingStyles">Conosci già il tuo stile?</label>
+                        <select id="knowingStyles" name="traits.knowingStyles">
+                            <option value="">Seleziona...</option>
+                            <option value="yes">Sì</option>
+                            <option value="no">No</option>
+                            <option value="partially">Parzialmente</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="feelingConfident">Ti senti sicuro/a del tuo look?</label>
+                        <select id="feelingConfident" name="traits.feelingConfident">
+                            <option value="">Seleziona...</option>
+                            <option value="yes">Sì</option>
+                            <option value="no">No</option>
+                            <option value="partially">Parzialmente</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="wardrobeWeared">Quanto del tuo guardaroba utilizzi?</label>
+                        <select id="wardrobeWeared" name="traits.wardrobeWeared">
+                            <option value="">Seleziona...</option>
+                            <option value="10%">10%</option>
+                            <option value="25%">25%</option>
+                            <option value="50%">50%</option>
+                            <option value="75%">75%</option>
+                            <option value="90%+">90%+</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Demographics -->
+                <div class="step" id="step-3">
+                    <div class="step-title">Informazioni demografiche</div>
+                    <div class="step-description">Aiutaci a personalizzare i consigli per te</div>
+                    
+                    <div class="form-group">
+                        <label>Sprechi risorse nell'abbigliamento? *</label>
+                        <div class="radio-group">
+                            <div class="radio-item">
+                                <input type="radio" id="waste-1" name="traits.wastedResources" value="allTimes" required>
+                                <label for="waste-1">Sempre</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="waste-2" name="traits.wastedResources" value="oftenTimes" required>
+                                <label for="waste-2">Spesso</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="waste-3" name="traits.wastedResources" value="fewTimes" required>
+                                <label for="waste-3">Raramente</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="waste-4" name="traits.wastedResources" value="never" required>
+                                <label for="waste-4">Mai</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Ti senti sicuro/a del tuo stile? *</label>
+                        <div class="radio-group">
+                            <div class="radio-item">
+                                <input type="radio" id="secure-1" name="traits.feelingSecure" value="yes" required>
+                                <label for="secure-1">Sì</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="secure-2" name="traits.feelingSecure" value="no" required>
+                                <label for="secure-2">No</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="secure-3" name="traits.feelingSecure" value="notSure" required>
+                                <label for="secure-3">Non sono sicuro/a</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Provi ansia riguardo al tuo look? *</label>
+                        <div class="radio-group">
+                            <div class="radio-item">
+                                <input type="radio" id="anxious-1" name="traits.feelingAnxious" value="struggle" required>
+                                <label for="anxious-1">È una lotta</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="anxious-2" name="traits.feelingAnxious" value="depends" required>
+                                <label for="anxious-2">Dipende</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="anxious-3" name="traits.feelingAnxious" value="rarely" required>
+                                <label for="anxious-3">Raramente</label>
+                            </div>
+                            <div class="radio-item">
+                                <input type="radio" id="anxious-4" name="traits.feelingAnxious" value="no" required>
+                                <label for="anxious-4">No</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="ages">Età *</label>
+                        <select id="ages" name="traits.ages" required>
+                            <option value="">Seleziona...</option>
+                            <option value="18-29">18-29</option>
+                            <option value="30-39">30-39</option>
+                            <option value="40-49">40-49</option>
+                            <option value="50+">50+</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="genders">Genere *</label>
+                        <select id="genders" name="traits.genders" required>
+                            <option value="">Seleziona...</option>
+                            <option value="male">Maschio</option>
+                            <option value="female">Femmina</option>
+                            <option value="other">Altro</option>
+                        </select>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label for="heightUnit">Unità altezza *</label>
+                            <select id="heightUnit" name="traits.heightUnit" required>
+                                <option value="">Seleziona...</option>
+                                <option value="cm">Centimetri</option>
+                                <option value="inch">Pollici</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="weightUnit">Unità peso *</label>
+                            <select id="weightUnit" name="traits.weightUnit" required>
+                                <option value="">Seleziona...</option>
+                                <option value="kg">Chilogrammi</option>
+                                <option value="lb">Libbre</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 4: Physical Characteristics -->
+                <div class="step" id="step-4">
+                    <div class="step-title">Caratteristiche fisiche</div>
+                    <div class="step-description">Aiutaci a consigliarti i look più adatti</div>
+                    
+                    <div class="form-group">
+                        <label for="bodyShapes">Forma del corpo *</label>
+                        <select id="bodyShapes" name="traits.bodyShapes" required>
+                            <option value="">Seleziona...</option>
+                            <option value="hourglass">Clessidra</option>
+                            <option value="bottomHourglass">Clessidra inferiore</option>
+                            <option value="topHourglass">Clessidra superiore</option>
+                            <option value="spoon">Cucchiaio</option>
+                            <option value="invertedTriangle">Triangolo invertito</option>
+                            <option value="triangle">Triangolo</option>
+                            <option value="rectangle">Rettangolo</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="eyeColors">Colore degli occhi *</label>
+                        <select id="eyeColors" name="traits.eyeColors" required>
+                            <option value="">Seleziona...</option>
+                            <option value="brightBlue">Azzurro brillante</option>
+                            <option value="lightBlue">Azzurro chiaro</option>
+                            <option value="brightGreen">Verde brillante</option>
+                            <option value="lightGreen">Verde chiaro</option>
+                            <option value="gray">Grigio</option>
+                            <option value="amber">Ambra</option>
+                            <option value="lightHazel">Nocciola chiaro</option>
+                            <option value="darkHazel">Nocciola scuro</option>
+                            <option value="lightBrown">Marrone chiaro</option>
+                            <option value="darkBrown">Marrone scuro</option>
+                            <option value="mutedBrown">Marrone spento</option>
+                            <option value="black">Nero</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="hairColors">Colore dei capelli *</label>
+                        <select id="hairColors" name="traits.hairColors" required>
+                            <option value="">Seleziona...</option>
+                            <option value="ashBlonde">Biondo cenere</option>
+                            <option value="goldenBlonde">Biondo dorato</option>
+                            <option value="ashBrown">Castano cenere</option>
+                            <option value="coolBrown">Castano freddo</option>
+                            <option value="brown">Castano</option>
+                            <option value="warmBrown">Castano caldo</option>
+                            <option value="strawberryBlonde">Biondo fragola</option>
+                            <option value="copper">Rame</option>
+                            <option value="auburn">Castano ramato</option>
+                            <option value="darkAuburn">Castano ramato scuro</option>
+                            <option value="brownBlack">Nero-castano</option>
+                            <option value="black">Nero</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="skinTones">Tono della pelle *</label>
+                        <select id="skinTones" name="traits.skinTones" required>
+                            <option value="">Seleziona...</option>
+                            <option value="coolPale">Pallido freddo</option>
+                            <option value="porcelain">Porcellana</option>
+                            <option value="ivory">Avorio</option>
+                            <option value="peach">Pesca</option>
+                            <option value="rosyBeige">Beige rosato</option>
+                            <option value="neutralBeige">Beige neutro</option>
+                            <option value="goldenBeige">Beige dorato</option>
+                            <option value="olive">Olivastro</option>
+                            <option value="tan">Abbronzato</option>
+                            <option value="bronze">Bronzo</option>
+                            <option value="chocolate">Cioccolato</option>
+                            <option value="espresso">Espresso</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Step 5: Style Preferences -->
+                <div class="step" id="step-5">
+                    <div class="step-title">Il tuo stile</div>
+                    <div class="step-description">Ultimo passo! Quale stile ti rappresenta di più?</div>
+                    
+                    <div class="form-group">
+                        <label for="aestheticStyles">Stile estetico *</label>
+                        <select id="aestheticStyles" name="traits.aestheticStyles" required>
+                            <option value="">Seleziona...</option>
+                            <option value="casual">Casual</option>
+                            <option value="glam">Glam</option>
+                            <option value="boho">Boho</option>
+                            <option value="romantic">Romantico</option>
+                            <option value="minimalist">Minimalista</option>
+                            <option value="classic">Classico</option>
+                            <option value="street">Street</option>
+                            <option value="preppy">Preppy</option>
+                            <option value="edgy">Edgy</option>
+                            <option value="sporty">Sportivo</option>
+                            <option value="Y2K">Y2K</option>
+                            <option value="eclectic">Eclettico</option>
+                        </select>
+                    </div>
+                    
+                    <div style="background: #f8f9ff; padding: 20px; border-radius: 10px; margin-top: 20px;">
+                        <h3 style="color: #667eea; margin-bottom: 10px;">🎉 Quasi fatto!</h3>
+                        <p style="color: #666; line-height: 1.5;">
+                            Stai per completare la registrazione. I tuoi dati ci aiuteranno a creare 
+                            consigli di styling personalizzati per te.
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Navigation -->
+                <div class="navigation">
+                    <button type="button" class="btn btn-secondary" id="prev-btn" onclick="previousStep()" style="display: none;">
+                        ← Indietro
+                    </button>
+                    <div></div>
+                    <button type="button" class="btn btn-primary" id="next-btn" onclick="nextStep()">
+                        Avanti →
+                    </button>
+                    <button type="button" class="btn btn-primary" id="submit-btn" onclick="submitRegistration()" style="display: none;">
+                        🎵 Registrati
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const KRATOS_API = 'http://localhost:4433';
+        
+        let currentFlow = null;
+        let currentFlowType = 'login';
+        let currentStep = 1;
+        const totalSteps = 5;
+        let registrationData = {};
+        
+        function showTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Show/hide forms
+            document.getElementById('login-form').classList.toggle('hidden', tab !== 'login');
+            document.getElementById('register-form').classList.toggle('hidden', tab !== 'register');
+            
+            currentFlowType = tab;
+            
+            if (tab === 'register') {
+                currentStep = 1;
+                updateStepDisplay();
+            }
+            
+            initializeFlow();
+        }
+        
+        function updateStepDisplay() {
+            // Update progress bar
+            const progress = (currentStep / totalSteps) * 100;
+            document.getElementById('progress').style.width = progress + '%';
+            
+            // Update step counter
+            document.getElementById('current-step').textContent = currentStep;
+            
+            // Show/hide steps
+            document.querySelectorAll('.step').forEach((step, index) => {
+                step.classList.toggle('active', index + 1 === currentStep);
+            });
+            
+            // Update navigation buttons
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const submitBtn = document.getElementById('submit-btn');
+            
+            prevBtn.style.display = currentStep > 1 ? 'block' : 'none';
+            nextBtn.style.display = currentStep < totalSteps ? 'block' : 'none';
+            submitBtn.style.display = currentStep === totalSteps ? 'block' : 'none';
+            
+            // Update navigation button states
+            updateNavigationState();
+        }
+        
+        function updateNavigationState() {
+            const nextBtn = document.getElementById('next-btn');
+            const submitBtn = document.getElementById('submit-btn');
+            
+            if (currentStep === totalSteps) {
+                const isValid = validateStep(currentStep);
+                submitBtn.disabled = !isValid;
+            } else {
+                const isValid = validateStep(currentStep);
+                nextBtn.disabled = !isValid;
+            }
+        }
+        
+        function validateStep(step) {
+            switch(step) {
+                case 1:
+                    const email = document.getElementById('email').value;
+                    const password = document.getElementById('password').value;
+                    return email && password && email.includes('@');
+                    
+                case 2:
+                    // Goals are optional, other fields check
+                    return true; // Step 2 has no required fields
+                    
+                case 3:
+                    const requiredStep3 = ['traits.wastedResources', 'traits.feelingSecure', 'traits.feelingAnxious', 'traits.ages', 'traits.genders', 'traits.heightUnit', 'traits.weightUnit'];
+                    return requiredStep3.every(name => {
+                        const input = document.querySelector(`[name="${name}"]`);
+                        return input && input.value;
+                    });
+                    
+                case 4:
+                    const requiredStep4 = ['traits.bodyShapes', 'traits.eyeColors', 'traits.hairColors', 'traits.skinTones'];
+                    return requiredStep4.every(name => {
+                        const input = document.querySelector(`[name="${name}"]`);
+                        return input && input.value;
+                    });
+                    
+                case 5:
+                    const aestheticStyle = document.getElementById('aestheticStyles').value;
+                    return aestheticStyle;
+                    
+                default:
+                    return true;
+            }
+        }
+        
+        function nextStep() {
+            if (!validateStep(currentStep)) {
+                showError('Completa tutti i campi obbligatori prima di continuare.');
+                return;
+            }
+            
+            // Save current step data
+            saveStepData();
+            
+            if (currentStep < totalSteps) {
+                currentStep++;
+                updateStepDisplay();
+                hideMessages();
+            }
+        }
+        
+        function previousStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateStepData();
+                updateStepDisplay();
+                hideMessages();
+            }
+        }
+        
+        function saveStepData() {
+            const currentStepElement = document.getElementById(`step-${currentStep}`);
+            const inputs = currentStepElement.querySelectorAll('input, select');
+            
+            inputs.forEach(input => {
+                if (input.type === 'checkbox') {
+                    if (input.checked) {
+                        if (!registrationData['traits.goals']) {
+                            registrationData['traits.goals'] = [];
+                        }
+                        if (!registrationData['traits.goals'].includes(input.value)) {
+                            registrationData['traits.goals'].push(input.value);
+                        }
+                    }
+                } else if (input.type === 'radio') {
+                    if (input.checked) {
+                        registrationData[input.name] = input.value;
+                    }
+                } else {
+                    if (input.value) {
+                        registrationData[input.name] = input.value;
+                    }
+                }
+            });
+            
+            console.log('Data saved for step', currentStep, ':', registrationData);
+        }
+        
+        function updateStepData() {
+            // Restore data for current step
+            Object.keys(registrationData).forEach(key => {
+                const input = document.querySelector(`[name="${key}"]`);
+                if (input) {
+                    if (input.type === 'checkbox') {
+                        if (key === 'traits.goals' && Array.isArray(registrationData[key])) {
+                            input.checked = registrationData[key].includes(input.value);
+                        }
+                    } else if (input.type === 'radio') {
+                        input.checked = input.value === registrationData[key];
+                    } else {
+                        input.value = registrationData[key];
+                    }
+                }
+            });
+            
+            updateNavigationState();
+        }
+        
+        function showError(message) {
+            const errorEl = document.getElementById('error-message');
+            errorEl.textContent = message;
+            errorEl.classList.remove('hidden');
+            document.getElementById('success-message').classList.add('hidden');
+        }
+        
+        function showSuccess(message) {
+            const successEl = document.getElementById('success-message');
+            successEl.textContent = message;
+            successEl.classList.remove('hidden');
+            document.getElementById('error-message').classList.add('hidden');
+        }
+        
+        function hideMessages() {
+            document.getElementById('error-message').classList.add('hidden');
+            document.getElementById('success-message').classList.add('hidden');
+        }
+        
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('hidden', !show);
+            document.querySelectorAll('.btn').forEach(btn => btn.disabled = show);
+        }
+        
+        async function initializeFlow() {
+            try {
+                showLoading(true);
+                hideMessages();
+                
+                const endpoint = currentFlowType === 'login' ? 'login' : 'registration';
+                const response = await fetch(`${KRATOS_API}/self-service/${endpoint}/browser`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                currentFlow = await response.json();
+                console.log('Flow initialized:', currentFlow);
+                
+            } catch (error) {
+                console.error('Error initializing flow:', error);
+                showError('Errore di connessione. Assicurati che Kratos sia in esecuzione.');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        async function submitRegistration() {
+            if (!validateStep(currentStep)) {
+                showError('Completa tutti i campi obbligatori.');
+                return;
+            }
+            
+            // Save final step data
+            saveStepData();
+            
+            try {
+                showLoading(true);
+                hideMessages();
+                
+                if (!currentFlow) {
+                    throw new Error('Flow non inizializzato');
+                }
+                
+                // Transform flat data to nested structure for Kratos
+                const traits = {};
+                const otherData = {};
+                
+                Object.keys(registrationData).forEach(key => {
+                    if (key.startsWith('traits.')) {
+                        const traitKey = key.replace('traits.', '');
+                        traits[traitKey] = registrationData[key];
+                    } else {
+                        otherData[key] = registrationData[key];
+                    }
+                });
+                
+                // Prepare final data for Kratos
+                const submitData = {
+                    flow: currentFlow.id,
+                    method: 'password',
+                    traits: traits,
+                    ...otherData
+                };
+                
+                console.log('Final registration data:', submitData);
+                console.log('Traits object:', traits);
+                
+                // Cambia solo l'URL da Kratos a Django
+                const response = await fetch('/api/register/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        traits: traits,
+                        password: otherData.password
+                    })
+                });
+                
+                const result = await response.json();
+                console.log('Registration result:', result);
+                
+                if (response.ok) {
+                    showSuccess('🎉 Registrazione completata con successo! Benvenuto in Mixout!');
+                    
+                    // Clear form and redirect after delay
+                    setTimeout(() => {
+                        window.location.href = 'http://localhost:8000/api/auth/callback';
+                    }, 2000);
+                } else {
+                    // Handle Kratos errors
+                    if (result.ui && result.ui.messages) {
+                        const errorMsg = result.ui.messages.map(msg => msg.text).join(', ');
+                        showError(errorMsg);
+                    } else if (result.error) {
+                        showError(result.error.message || 'Errore durante la registrazione');
+                    } else {
+                        showError('Errore durante la registrazione. Controlla i dati inseriti.');
+                    }
+                    
+                    // Update flow if provided
+                    if (result.id) {
+                        currentFlow = result;
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Error submitting registration:', error);
+                showError('Errore di rete. Riprova.');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        async function submitLogin(formData) {
+            try {
+                showLoading(true);
+                hideMessages();
+                
+                if (!currentFlow) {
+                    throw new Error('Flow non inizializzato');
+                }
+                
+                const submitData = {
+                    flow: currentFlow.id,
+                    method: 'password',
+                    ...formData
+                };
+                
+                console.log('Login data:', submitData);
+                
+                const response = await fetch(`${KRATOS_API}/self-service/login?flow=${currentFlow.id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'include',  // ← E anche qui
+                    body: JSON.stringify(submitData)
+                });
+                
+                const result = await response.json();
+                console.log('Login result:', result);
+                
+                if (response.ok) {
+                    showSuccess('Login effettuato con successo!');
+                    setTimeout(() => {
+                        window.location.href = 'http://localhost:8000/api/auth/callback';
+                    }, 1500);
+                } else {
+                    if (result.ui && result.ui.messages) {
+                        const errorMsg = result.ui.messages.map(msg => msg.text).join(', ');
+                        showError(errorMsg);
+                    } else {
+                        showError(result.error?.message || 'Credenziali non valide');
+                    }
+                    
+                    if (result.id) {
+                        currentFlow = result;
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Error submitting login:', error);
+                showError('Errore di rete. Riprova.');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            await submitLogin(data);
+        });
+        
+        // Add event listeners for form validation
+        document.addEventListener('change', updateNavigationState);
+        document.addEventListener('input', updateNavigationState);
+        
+        // Add interactive effects for checkboxes and radios
+        document.addEventListener('change', function(e) {
+            if (e.target.type === 'checkbox') {
+                const item = e.target.closest('.checkbox-item');
+                if (item) {
+                    item.classList.toggle('checked', e.target.checked);
+                }
+            } else if (e.target.type === 'radio') {
+                // Remove checked class from all radio items in the same group
+                const group = e.target.closest('.radio-group');
+                if (group) {
+                    group.querySelectorAll('.radio-item').forEach(item => {
+                        item.classList.remove('checked');
+                    });
+                    // Add checked class to selected item
+                    const item = e.target.closest('.radio-item');
+                    if (item) {
+                        item.classList.add('checked');
+                    }
+                }
+            }
+        });
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            updateStepDisplay();
+            initializeFlow();
+        });
+    </script>
+</body>
+</html>

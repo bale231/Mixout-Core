@@ -1,112 +1,32 @@
 services:
+
   django:
     build: .
     container_name: mixoutcore_django
-    command: /bin/sh -c "python manage.py collectstatic --noinput && gunicorn mixoutcore.wsgi:application --bind 0.0.0.0:8000"
+    command: /bin/sh -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn mixoutcore.wsgi:application --bind 0.0.0.0:8000"
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: mixoutcore.settings
+      STATIC_ROOT: /app/staticfiles
     volumes:
       - .:/app
     ports:
       - "8000:8000"
-    depends_on:
-      - mongo
-      - kratos
-    environment:
-      - DJANGO_SETTINGS_MODULE=mixoutcore.settings
-      - KRATOS_ADMIN_URL=http://kratos:4434
-      - KRATOS_WEBHOOK_TOKEN=dev-secret-123
-
-
-  mongo:
-    image: mongo:7
-    container_name: mongo_db
-    restart: always
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-
-  kratos-postgres:
-    image: postgres:15
-    environment:
-      - POSTGRES_USER=kratos
-      - POSTGRES_PASSWORD=secret
-      - POSTGRES_DB=kratos
-    ports:
-      - "5433:5432"
-    volumes:
-      - kratos_pg_data:/var/lib/postgresql/data
-
-  kratos-migrate:
-    image: oryd/kratos:v1.1.0
-    depends_on:
-      - kratos-postgres
-    environment:
-      - DSN=postgres://kratos:secret@kratos-postgres:5432/kratos?sslmode=disable
-      # usa lo stesso schema del servizio kratos
-      - IDENTITY_SCHEMAS_0_ID=default
-      - IDENTITY_SCHEMAS_0_URL=file:///etc/config/kratos/identity.schema.json
-    volumes:
-      - ./kratos/identity.schema.json:/etc/config/kratos/identity.schema.json:ro
-    command: migrate sql -e --yes
+    restart: unless-stopped
 
   kratos:
-    image: oryd/kratos:v1.1.0
-    depends_on:
-      - kratos-postgres
-    environment:
-      - DSN=postgres://kratos:secret@kratos-postgres:5432/kratos?sslmode=disable
-
-      # Base URL
-      - SERVE_PUBLIC_BASE_URL=http://localhost:4433/
-      - SERVE_ADMIN_BASE_URL=http://kratos:4434/
-
-      # Self-service
-      - SELFSERVICE_DEFAULT_BROWSER_RETURN_URL=http://localhost:8000/
-      - SELFSERVICE_ALLOWED_RETURN_URLS_0=http://localhost:8000
-      - SELFSERVICE_ALLOWED_RETURN_URLS_1=http://localhost:4455
-      - SELFSERVICE_FLOWS_LOGIN_UI_URL=http://localhost:4455/login
-      - SELFSERVICE_FLOWS_REGISTRATION_UI_URL=http://localhost:4455/registration
-      # - SELFSERVICE_FLOWS_SETTINGS_UI_URL=http://localhost:4455/settings
-      # - SELFSERVICE_FLOWS_RECOVERY_UI_URL=http://localhost:4455/recovery
-      # - SELFSERVICE_FLOWS_VERIFICATION_UI_URL=http://localhost:4455/verification
-
-      # Courier: mettiamo valori fittizi per superare la validazione
-      - COURIER_SMTP_CONNECTION_URI=smtp://localhost:1025/?skip_ssl_verify=true
-      - COURIER_SMTP_FROM_ADDRESS=no-reply@example.local
-
-      # CORS (public)
-      - SERVE_PUBLIC_CORS_ENABLED=true
-      - SERVE_PUBLIC_CORS_ALLOW_CREDENTIALS=true
-      - SERVE_PUBLIC_CORS_ALLOWED_ORIGINS=http://localhost:4455,http://localhost:8000
-      - SERVE_PUBLIC_CORS_ALLOWED_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS
-      - SERVE_PUBLIC_CORS_ALLOWED_HEADERS=Authorization,Content-Type,X-Session-Token,X-CSRF-Token,Cookie
-      - SERVE_PUBLIC_CORS_EXPOSED_HEADERS=Content-Type,X-Session-Token
-      - SERVE_PUBLIC_CORS_MAX_AGE=86400
-
-      # Identity schema via file (NO base64)
-      - IDENTITY_SCHEMAS_0_ID=default
-      - IDENTITY_SCHEMAS_0_URL=file:///etc/config/kratos/identity.schema.json
-
-      # Debug
-      - LOG_LEAK_SENSITIVE_VALUES=true
+    image: oryd/kratos:v1.0.0
     volumes:
       - ./kratos/identity.schema.json:/etc/config/kratos/identity.schema.json:ro
       - ./kratos/registration.jsonnet:/etc/config/kratos/registration.jsonnet:ro
+      - ./kratos/kratos.yml:/etc/config/kratos/kratos.yml:ro
+    command: serve -c /etc/config/kratos/kratos.yml --dev --watch-courier
     ports:
       - "4433:4433"
       - "4434:4434"
-
-  kratos-ui:
-    image: oryd/kratos-selfservice-ui-node:v0.10.1
-    depends_on:
-      - kratos
-    environment:
-      - KRATOS_PUBLIC_URL=http://kratos:4433/
-      - KRATOS_BROWSER_URL=http://localhost:4433/
-      - PORT=4455
-    ports:
-      - "4455:4455"
-
-volumes:
-  mongo_data:
-  kratos_pg_data:
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4434/health/ready >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped

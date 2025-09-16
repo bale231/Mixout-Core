@@ -1,7 +1,8 @@
 # kratos/kratos.yml
 version: v1.1.0
 
-dsn: memory
+# DSN per database OVH remoto
+dsn: postgres://avnadmin:frxCd6Oz20uLgpF1Iy7Y@postgresql-e5082001-oef285e37.database.cloud.ovh.net:20184/mixoutcore?sslmode=require
 
 log:
   level: debug
@@ -15,45 +16,73 @@ serve:
       allowed_origins:
         - http://localhost:4455
         - http://localhost:8000
-      allowed_methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
-      allowed_headers: [Authorization, Content-Type, X-Session-Token, X-CSRF-Token, Cookie]
-      exposed_headers: [Content-Type, X-Session-Token]
+        - http://localhost:3000
+        - http://localhost:8080
+        - http://127.0.0.1:8080
+        - http://127.0.0.1:8000
+      allowed_methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      allowed_headers:
+        - Authorization
+        - Content-Type
+        - X-Session-Token
+        - X-CSRF-Token
+        - Cookie
+      exposed_headers:
+        - Content-Type
+        - X-Session-Token
       max_age: 86400
   admin:
     base_url: http://kratos:4434/
 
 selfservice:
-  default_browser_return_url: http://localhost:8000/
+  default_browser_return_url: http://localhost:8000/api/auth/callback
   allowed_return_urls:
-    - http://localhost:4455
     - http://localhost:8000
+    - http://localhost:4455
+    - http://localhost:3000
   flows:
     login:
       ui_url: http://localhost:4455/login
+      after:
+        default_browser_return_url: http://localhost:8000/api/auth/callback
     registration:
       ui_url: http://localhost:4455/registration
       after:
+        default_browser_return_url: http://localhost:8000/api/auth/callback
         hooks:
           - hook: web_hook
             config:
-              url: http://django:8000/kratos/hooks/registration
+              url: http://django:8000/api/kratos/hooks/registration/
               method: POST
               body: file:///etc/config/kratos/registration.jsonnet
               response:
-                parse: false     # esegui DOPO che l’identità è stata creata
-                ignore: true     # non bloccare il flow se il webhook fallisce
+                parse: false
+                ignore: true
               auth:
                 type: api_key
                 config:
                   in: header
                   name: X-Kratos-Webhook-Token
-                  value: dev-secret-123
+                  value: webhook-secret-mixout-2024
     settings:
       ui_url: http://localhost:4455/settings
+      after:
+        default_browser_return_url: http://localhost:8000/api/auth/callback
     recovery:
       ui_url: http://localhost:4455/recovery
+      after:
+        default_browser_return_url: http://localhost:8000/api/auth/callback
     verification:
       ui_url: http://localhost:4455/verification
+      after:
+        default_browser_return_url: http://localhost:8000/api/auth/callback
+
   methods:
     password:
       enabled: true
@@ -63,3 +92,8 @@ identity:
   schemas:
     - id: default
       url: file:///etc/config/kratos/identity.schema.json
+
+courier:
+  smtp:
+    connection_uri: smtp://localhost:1025/?skip_ssl_verify=true
+    from_address: no-reply@mixout.local

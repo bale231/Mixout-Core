@@ -1,98 +1,166 @@
 # app/models.py
-from datetime import datetime
-from mongoengine import (
-    Document, StringField, ListField, DateTimeField
-)
-from mongoengine.errors import ValidationError
+from django.db import models
+from django.contrib.postgres.fields import ArrayField
 
-GOAL_CHOICES = (
-    'discoverStyle', 'feelConfident', 'lookAttractive',
-    'spendLess', 'saveTime', 'other'
-)
+class GoalChoices(models.TextChoices):
+    DISCOVER_STYLE = "discoverStyle", "discoverStyle"
+    FEEL_CONFIDENT = "feelConfident", "feelConfident"
+    LOOK_ATTRACTIVE = "lookAttractive", "lookAttractive"
+    SPEND_LESS = "spendLess", "spendLess"
+    SAVE_TIME = "saveTime", "saveTime"
+    OTHER = "other", "other"
 
-TRINARY_CHOICES = ('yes', 'no', 'partially')
+class TrinaryChoices(models.TextChoices):
+    YES = "yes", "yes"
+    NO = "no", "no"
+    PARTIALLY = "partially", "partially"
 
-WARDROBE_CHOICES = ('10%', '25%', '50%', '75%', '90%+')
+class WardrobeChoices(models.TextChoices):
+    P10 = "10%", "10%"
+    P25 = "25%", "25%"
+    P50 = "50%", "50%"
+    P75 = "75%", "75%"
+    P90 = "90%+", "90%+"
 
-WASTED_RESOURCES_CHOICES = ('allTimes', 'oftenTimes', 'fewTimes', 'never')
-FEELING_SECURE_CHOICES = ('yes', 'no', 'notSure')
-FEELING_ANXIOUS_CHOICES = ('struggle', 'depends', 'rarely', 'no')
+class WastedResourcesChoices(models.TextChoices):
+    ALL = "allTimes", "allTimes"
+    OFTEN = "oftenTimes", "oftenTimes"
+    FEW = "fewTimes", "fewTimes"
+    NEVER = "never", "never"
 
-AGES_CHOICES = ('18-29', '30-39', '40-49', '50+')
-GENDERS_CHOICES = ('male', 'female', 'other')
+class FeelingSecureChoices(models.TextChoices):
+    YES = "yes", "yes"
+    NO = "no", "no"
+    NOT_SURE = "notSure", "notSure"
 
-HEIGHT_UNIT_CHOICES = ('cm', 'inch')
-WEIGHT_UNIT_CHOICES = ('lb', 'kg')
+class FeelingAnxiousChoices(models.TextChoices):
+    STRUGGLE = "struggle", "struggle"
+    DEPENDS = "depends", "depends"
+    RARELY = "rarely", "rarely"
+    NO = "no", "no"
 
-BODY_SHAPES_CHOICES = (
-    'hourglass', 'bottomHourglass', 'topHourglass', 'spoon',
-    'invertedTriangle', 'triangle', 'rectangle'
-)
+class AgesChoices(models.TextChoices):
+    A18_29 = "18-29", "18-29"
+    A30_39 = "30-39", "30-39"
+    A40_49 = "40-49", "40-49"
+    A50P = "50+", "50+"
 
-EYE_COLORS_CHOICES = (
-    'brightBlue', 'lightBlue', 'brightGreen', 'lightGreen', 'gray',
-    'amber', 'lightHazel', 'darkHazel', 'lightBrown', 'darkBrown',
-    'mutedBrown', 'black'
-)
+class GendersChoices(models.TextChoices):
+    MALE = "male", "male"
+    FEMALE = "female", "female"
+    OTHER = "other", "other"
 
-HAIR_COLORS_CHOICES = (
-    'ashBlonde', 'goldenBlonde', 'ashBrown', 'coolBrown', 'brown',
-    'warmBrown', 'strawberryBlonde', 'copper', 'auburn', 'darkAuburn',
-    'brownBlack', 'black'
-)
+class HeightUnitChoices(models.TextChoices):
+    CM = "cm", "cm"
+    INCH = "inch", "inch"
 
-SKIN_TONES_CHOICES = (
-    'coolPale', 'porcelain', 'ivory', 'peach', 'rosyBeige',
-    'neutralBeige', 'goldenBeige', 'olive', 'tan', 'bronze',
-    'chocolate', 'espresso'
-)
+class WeightUnitChoices(models.TextChoices):
+    LB = "lb", "lb"
+    KG = "kg", "kg"
 
-AESTHETIC_STYLES_CHOICES = (
-    'casual', 'glam', 'boho', 'romantic', 'minimalist', 'classic',
-    'street', 'preppy', 'edgy', 'sporty', 'Y2K', 'eclectic'
-)
+class BodyShapesChoices(models.TextChoices):
+    HOURGLASS = "hourglass", "hourglass"
+    BOTTOM_HOURGLASS = "bottomHourglass", "bottomHourglass"
+    TOP_HOURGLASS = "topHourglass", "topHourglass"
+    SPOON = "spoon", "spoon"
+    INV_TRI = "invertedTriangle", "invertedTriangle"
+    TRIANGLE = "triangle", "triangle"
+    RECTANGLE = "rectangle", "rectangle"
 
+class EyeColorsChoices(models.TextChoices):
+    BRIGHT_BLUE = "brightBlue", "brightBlue"
+    LIGHT_BLUE = "lightBlue", "lightBlue"
+    BRIGHT_GREEN = "brightGreen", "brightGreen"
+    LIGHT_GREEN = "lightGreen", "lightGreen"
+    GRAY = "gray", "gray"
+    AMBER = "amber", "amber"
+    LIGHT_HAZEL = "lightHazel", "lightHazel"
+    DARK_HAZEL = "darkHazel", "darkHazel"
+    LIGHT_BROWN = "lightBrown", "lightBrown"
+    DARK_BROWN = "darkBrown", "darkBrown"
+    MUTED_BROWN = "mutedBrown", "mutedBrown"
+    BLACK = "black", "black"
 
-class UserStyleProfile(Document):
-    meta = {
-        'collection': 'user_style_profiles',
-        'indexes': ['kratos_identity_id'],
-    }
+class HairColorsChoices(models.TextChoices):
+    ASH_BLONDE = "ashBlonde", "ashBlonde"
+    GOLDEN_BLONDE = "goldenBlonde", "goldenBlonde"
+    ASH_BROWN = "ashBrown", "ashBrown"
+    COOL_BROWN = "coolBrown", "coolBrown"
+    BROWN = "brown", "brown"
+    WARM_BROWN = "warmBrown", "warmBrown"
+    STRAWBERRY_BLONDE = "strawberryBlonde", "strawberryBlonde"
+    COPPER = "copper", "copper"
+    AUBURN = "auburn", "auburn"
+    DARK_AUBURN = "darkAuburn", "darkAuburn"
+    BROWN_BLACK = "brownBlack", "brownBlack"
+    BLACK = "black", "black"
 
-    # Identity di Ory Kratos (UUID) - chiave logica unica
-    kratos_identity_id = StringField(required=True, unique=True)
+class SkinTonesChoices(models.TextChoices):
+    COOL_PALE = "coolPale", "coolPale"
+    PORCELAIN = "porcelain", "porcelain"
+    IVORY = "ivory", "ivory"
+    PEACH = "peach", "peach"
+    ROSY_BEIGE = "rosyBeige", "rosyBeige"
+    NEUTRAL_BEIGE = "neutralBeige", "neutralBeige"
+    GOLDEN_BEIGE = "goldenBeige", "goldenBeige"
+    OLIVE = "olive", "olive"
+    TAN = "tan", "tan"
+    BRONZE = "bronze", "bronze"
+    CHOCOLATE = "chocolate", "chocolate"
+    ESPRESSO = "espresso", "espresso"
 
-    # Campi richiesti/obbligatori
-    wastedResources = StringField(choices=WASTED_RESOURCES_CHOICES, required=True)
-    feelingSecure = StringField(choices=FEELING_SECURE_CHOICES, required=True)
-    feelingAnxious = StringField(choices=FEELING_ANXIOUS_CHOICES, required=True)
-    ages = StringField(choices=AGES_CHOICES, required=True)
-    genders = StringField(choices=GENDERS_CHOICES, required=True)
-    heightUnit = StringField(choices=HEIGHT_UNIT_CHOICES, required=True)
-    weightUnit = StringField(choices=WEIGHT_UNIT_CHOICES, required=True)
-    bodyShapes = StringField(choices=BODY_SHAPES_CHOICES, required=True)
-    eyeColors = StringField(choices=EYE_COLORS_CHOICES, required=True)
-    hairColors = StringField(choices=HAIR_COLORS_CHOICES, required=True)
-    skinTones = StringField(choices=SKIN_TONES_CHOICES, required=True)
-    aestheticStyles = StringField(choices=AESTHETIC_STYLES_CHOICES, required=True)
+class AestheticStylesChoices(models.TextChoices):
+    CASUAL = "casual", "casual"
+    GLAM = "glam", "glam"
+    BOHO = "boho", "boho"
+    ROMANTIC = "romantic", "romantic"
+    MINIMALIST = "minimalist", "minimalist"
+    CLASSIC = "classic", "classic"
+    STREET = "street", "street"
+    PREPPY = "preppy", "preppy"
+    EDGY = "edgy", "edgy"
+    SPORTY = "sporty", "sporty"
+    Y2K = "Y2K", "Y2K"
+    ECLECTIC = "eclectic", "eclectic"
 
-    # Campi opzionali (possono essere null)
-    goals = ListField(StringField(choices=GOAL_CHOICES), default=list)
-    knowingStyles = StringField(choices=TRINARY_CHOICES, null=True, default=None)
-    feelingConfident = StringField(choices=TRINARY_CHOICES, null=True, default=None)
-    wardrobeWeared = StringField(choices=WARDROBE_CHOICES, null=True, default=None)
+class UserStyleProfile(models.Model):
+    class Meta:
+        db_table = "user_style_profiles"
+        indexes = [models.Index(fields=["kratos_identity_id"])]
 
-    # Timestamps
-    created_at = DateTimeField(default=datetime.utcnow)
-    updated_at = DateTimeField(default=datetime.utcnow)
+    kratos_identity_id = models.CharField(max_length=64, unique=True)
 
-    def clean(self):
-        # aggiorna updated_at ad ogni save/validate
-        self.updated_at = datetime.utcnow()
+    # required
+    wastedResources = models.CharField(max_length=20, choices=WastedResourcesChoices.choices)
+    feelingSecure = models.CharField(max_length=20, choices=FeelingSecureChoices.choices)
+    feelingAnxious = models.CharField(max_length=20, choices=FeelingAnxiousChoices.choices)
+    ages = models.CharField(max_length=10, choices=AgesChoices.choices)
+    genders = models.CharField(max_length=10, choices=GendersChoices.choices)
+    heightUnit = models.CharField(max_length=10, choices=HeightUnitChoices.choices)
+    weightUnit = models.CharField(max_length=10, choices=WeightUnitChoices.choices)
+    bodyShapes = models.CharField(max_length=30, choices=BodyShapesChoices.choices)
+    eyeColors = models.CharField(max_length=20, choices=EyeColorsChoices.choices)
+    hairColors = models.CharField(max_length=20, choices=HairColorsChoices.choices)
+    skinTones = models.CharField(max_length=20, choices=SkinTonesChoices.choices)
+    aestheticStyles = models.CharField(max_length=20, choices=AestheticStylesChoices.choices)
+
+    # optional
+    goals = ArrayField(
+        base_field=models.CharField(max_length=32, choices=GoalChoices.choices),
+        default=list,
+        blank=True,
+    )
+    knowingStyles = models.CharField(max_length=20, choices=TrinaryChoices.choices, null=True, blank=True)
+    feelingConfident = models.CharField(max_length=20, choices=TrinaryChoices.choices, null=True, blank=True)
+    wardrobeWeared = models.CharField(max_length=10, choices=WardrobeChoices.choices, null=True, blank=True)
+
+    # timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def to_dict(self):
         return {
-            "id": str(self.id), # type: ignore
+            "id": self.pk,
             "kratos_identity_id": self.kratos_identity_id,
             "goals": self.goals,
             "knowingStyles": self.knowingStyles,
@@ -110,6 +178,6 @@ class UserStyleProfile(Document):
             "hairColors": self.hairColors,
             "skinTones": self.skinTones,
             "aestheticStyles": self.aestheticStyles,
-            "created_at": self.created_at.isoformat(), # type: ignore
-            "updated_at": self.updated_at.isoformat(), # type: ignore
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

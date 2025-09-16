@@ -1,5 +1,7 @@
 django
-mongoengine
 gunicorn
 requests
 whitenoise>=6.7
+psycopg[binary]>=3.1
+django-cors-headers==4.3.1
+
