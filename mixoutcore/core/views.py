@@ -64,17 +64,27 @@ class ProxyRegistrationView(View):
             data = json.loads(request.body)
             logger.info(f"Received registration data: {data}")
             
-            session = requests.Session()
+            # Usa i cookie del browser dell'utente
+            cookies = request.COOKIES
+            headers = {
+                'Accept': 'application/json',
+                'User-Agent': request.headers.get('User-Agent', ''),
+            }
             
-            # 1. Inizializza flow registrazione
-            flow_response = session.get(
+            # Se ci sono cookie di Kratos, passali
+            cookie_header = '; '.join([f"{k}={v}" for k, v in cookies.items() if k.startswith('ory_kratos')])
+            if cookie_header:
+                headers['Cookie'] = cookie_header
+            
+            # 1. Inizializza flow registrazione CON i cookie dell'utente
+            flow_response = requests.get(
                 'http://kratos:4433/self-service/registration/browser',
-                headers={'Accept': 'application/json'}
+                headers=headers
             )
             
             if flow_response.status_code != 200:
                 logger.error(f"Failed to initialize flow: {flow_response.status_code}")
-                return JsonResponse({'error': 'Failed to initialize flow'}, status=400)
+                return JsonResponse({'success': False, 'error': 'Errore inizializzazione flow'}, status=400)
             
             flow_data = flow_response.json()
             logger.info(f"Flow initialized: {flow_data['id']}")
@@ -88,35 +98,78 @@ class ProxyRegistrationView(View):
             
             if not csrf_token:
                 logger.error("CSRF token not found in flow")
-                return JsonResponse({'error': 'CSRF token not found'}, status=400)
+                return JsonResponse({'success': False, 'error': 'CSRF token mancante'}, status=400)
             
             logger.info(f"Found CSRF token: {csrf_token[:20]}...")
             
-            # 3. Prepara dati per Kratos
-            registration_data = {
+            # 3. Prepara dati con formato corretto per Kratos
+            form_data = {
                 'flow': flow_data['id'],
                 'method': 'password',
                 'csrf_token': csrf_token,
                 'password': data.get('password', ''),
-                **{f"traits.{k}": v for k, v in data.get('traits', {}).items()}
+                'traits.email': data.get('traits', {}).get('email', ''),
             }
             
-            # 4. Invia registrazione
+            # Aggiungi tutti i traits come campi separati
+            for key, value in data.get('traits', {}).items():
+                if key != 'email':  # email già aggiunta
+                    if isinstance(value, list):
+                        # Per array come goals, aggiungi come campi multipli
+                        for i, item in enumerate(value):
+                            form_data[f'traits.{key}.{i}'] = item
+                    else:
+                        form_data[f'traits.{key}'] = value
+            
+            logger.info(f"Form data keys: {list(form_data.keys())}")
+            
+            # 4. Prepara i cookie dalla risposta del flow
+            request_cookies = {}
+            for cookie in flow_response.cookies:
+                request_cookies[cookie.name] = cookie.value
+            
+            # Combina con i cookie esistenti
+            all_cookies = {**dict(cookies), **request_cookies}
+            
+            # 5. Invia come form data, non JSON
             action_url = flow_data.get('ui', {}).get('action', '').replace('localhost:4433', 'kratos:4433')
             
-            register_response = session.post(
+            register_response = requests.post(
                 action_url,
-                data=registration_data,
+                data=form_data,  # form data, non json
                 headers={
                     'Accept': 'application/json',
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                }
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Cookie': '; '.join([f"{k}={v}" for k, v in all_cookies.items()])
+                },
+                cookies=all_cookies,
+                allow_redirects=False
             )
             
-            logger.info(f"Kratos response: {register_response.status_code}")
+            logger.info(f"Registration response: {register_response.status_code}")
+            logger.info(f"Response headers: {dict(register_response.headers)}")
             
             if register_response.status_code == 200:
+                response_data = JsonResponse({'success': True, 'message': 'Registrazione completata!'})
+                
+                # Propaga eventuali cookie di sessione dal response di Kratos
+                for cookie in register_response.cookies:
+                    response_data.set_cookie(
+                        cookie.name, 
+                        cookie.value, # type: ignore
+                        max_age=cookie.expires,
+                        domain=cookie.domain,
+                        path=cookie.path,
+                        secure=cookie.secure,
+                        httponly=cookie.get('HttpOnly', False) # type: ignore
+                    )
+                
+                return response_data
+                
+            elif register_response.status_code in [302, 303]:
+                # Redirect - registrazione probabilmente riuscita
                 return JsonResponse({'success': True, 'message': 'Registrazione completata!'})
+                
             else:
                 try:
                     error_data = register_response.json()
@@ -125,20 +178,25 @@ class ProxyRegistrationView(View):
                     # Gestisci errori specifici
                     user_messages = []
                     
-                    if error_data.get('error', {}).get('id') == 'security_csrf_violation':
+                    error_id = error_data.get('error', {}).get('id')
+                    if error_id == 'security_csrf_violation':
                         user_messages.append('Errore di sicurezza. Ricarica la pagina e riprova.')
+                    elif error_id == 'session_already_available':
+                        user_messages.append('Sei già loggato. Ricarica la pagina.')
                     else:
                         ui_messages = error_data.get('ui', {}).get('messages', [])
                         for message in ui_messages:
-                            message_id = message.get('id')
+                            message_id = message.get('id', 0)
                             message_text = message.get('text', '')
                             
-                            if message_id == 4000007 or 'exists already' in message_text:
-                                user_messages.append('Un account con questa email esiste già. Prova con un\'altra email.')
-                            elif 'password' in message_text.lower() and 'policy' in message_text.lower():
+                            if message_id == 4000007 or 'exists already' in message_text.lower():
+                                user_messages.append('Un account con questa email esiste già.')
+                            elif 'password' in message_text.lower() and ('policy' in message_text.lower() or 'weak' in message_text.lower()):
                                 user_messages.append('La password non rispetta i criteri di sicurezza.')
                             elif 'email' in message_text.lower() and 'invalid' in message_text.lower():
                                 user_messages.append('L\'indirizzo email non è valido.')
+                            elif 'required' in message_text.lower():
+                                user_messages.append('Tutti i campi obbligatori devono essere compilati.')
                             else:
                                 user_messages.append(message_text)
                     
@@ -153,6 +211,7 @@ class ProxyRegistrationView(View):
                     
                 except Exception as json_error:
                     logger.error(f"Failed to parse Kratos error: {json_error}")
+                    logger.error(f"Raw response: {register_response.text}")
                     return JsonResponse({
                         'success': False, 
                         'error': 'Errore durante la registrazione. Riprova.'
@@ -160,11 +219,13 @@ class ProxyRegistrationView(View):
                 
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in request: {e}")
-            return JsonResponse({'error': 'Dati non validi'}, status=400)
+            return JsonResponse({'success': False, 'error': 'Dati non validi'}, status=400)
         except Exception as e:
             logger.error(f"Exception in proxy_registration: {str(e)}")
-            return JsonResponse({'error': 'Errore del server. Riprova.'}, status=500)
-
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            return JsonResponse({'success': False, 'error': 'Errore del server. Riprova.'}, status=500)
+        
 @method_decorator(csrf_exempt, name="dispatch")
 class ProxyLoginView(View):
     def post(self, request):
@@ -172,17 +233,27 @@ class ProxyLoginView(View):
             data = json.loads(request.body)
             logger.info(f"Received login data: {data.get('identifier', 'no email')}")
             
-            session = requests.Session()
+            # Usa i cookie del browser dell'utente
+            cookies = request.COOKIES
+            headers = {
+                'Accept': 'application/json',
+                'User-Agent': request.headers.get('User-Agent', ''),
+            }
             
-            # 1. Inizializza flow login
-            flow_response = session.get(
+            # Se ci sono cookie di Kratos, passali
+            cookie_header = '; '.join([f"{k}={v}" for k, v in cookies.items() if k.startswith('ory_kratos')])
+            if cookie_header:
+                headers['Cookie'] = cookie_header
+            
+            # 1. Inizializza flow login CON i cookie dell'utente
+            flow_response = requests.get(
                 'http://kratos:4433/self-service/login/browser',
-                headers={'Accept': 'application/json'}
+                headers=headers
             )
             
             if flow_response.status_code != 200:
                 logger.error(f"Failed to initialize login flow: {flow_response.status_code}")
-                return JsonResponse({'error': 'Failed to initialize login flow'}, status=400)
+                return JsonResponse({'success': False, 'error': 'Errore inizializzazione login'}, status=400)
             
             flow_data = flow_response.json()
             logger.info(f"Login flow initialized: {flow_data['id']}")
@@ -196,12 +267,12 @@ class ProxyLoginView(View):
             
             if not csrf_token:
                 logger.error("CSRF token not found in login flow")
-                return JsonResponse({'error': 'CSRF token not found'}, status=400)
+                return JsonResponse({'success': False, 'error': 'CSRF token mancante'}, status=400)
             
             logger.info(f"Found login CSRF token: {csrf_token[:20]}...")
             
-            # 3. Prepara dati login
-            login_data = {
+            # 3. Prepara dati login come form data
+            form_data = {
                 'flow': flow_data['id'],
                 'method': 'password',
                 'csrf_token': csrf_token,
@@ -209,22 +280,69 @@ class ProxyLoginView(View):
                 'password': data.get('password', '')
             }
             
-            # 4. Invia login
+            logger.info(f"Login form data keys: {list(form_data.keys())}")
+            
+            # 4. Prepara i cookie dalla risposta del flow
+            request_cookies = {}
+            for cookie in flow_response.cookies:
+                request_cookies[cookie.name] = cookie.value
+            
+            # Combina con i cookie esistenti
+            all_cookies = {**dict(cookies), **request_cookies}
+            
+            # 5. Invia login come form data
             action_url = flow_data.get('ui', {}).get('action', '').replace('localhost:4433', 'kratos:4433')
             
-            login_response = session.post(
+            login_response = requests.post(
                 action_url,
-                data=login_data,
+                data=form_data,  # form data, non json
                 headers={
                     'Accept': 'application/json',
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                }
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Cookie': '; '.join([f"{k}={v}" for k, v in all_cookies.items()])
+                },
+                cookies=all_cookies,
+                allow_redirects=False
             )
             
             logger.info(f"Kratos login response: {login_response.status_code}")
+            logger.info(f"Login response headers: {dict(login_response.headers)}")
             
             if login_response.status_code == 200:
-                return JsonResponse({'success': True, 'message': 'Login effettuato con successo!'})
+                response_data = JsonResponse({'success': True, 'message': 'Login effettuato con successo!'})
+                
+                # Propaga eventuali cookie di sessione dal response di Kratos
+                for cookie in login_response.cookies:
+                    response_data.set_cookie(
+                        cookie.name, 
+                        cookie.value, # type: ignore
+                        max_age=getattr(cookie, 'max_age', None),
+                        domain=getattr(cookie, 'domain', None),
+                        path=getattr(cookie, 'path', '/'),
+                        secure=getattr(cookie, 'secure', False),
+                        httponly=hasattr(cookie, 'httponly') and cookie.httponly # type: ignore
+                    )
+                
+                return response_data
+                
+            elif login_response.status_code in [302, 303]:
+                # Redirect - login probabilmente riuscito
+                response_data = JsonResponse({'success': True, 'message': 'Login effettuato con successo!'})
+                
+                # Propaga cookie anche nei redirect
+                for cookie in login_response.cookies:
+                    response_data.set_cookie(
+                        cookie.name, 
+                        cookie.value, # type: ignore
+                        max_age=getattr(cookie, 'max_age', None),
+                        domain=getattr(cookie, 'domain', None),
+                        path=getattr(cookie, 'path', '/'),
+                        secure=getattr(cookie, 'secure', False),
+                        httponly=hasattr(cookie, 'httponly') and cookie.httponly # type: ignore
+                    )
+                
+                return response_data
+                
             else:
                 try:
                     error_data = login_response.json()
@@ -233,16 +351,24 @@ class ProxyLoginView(View):
                     # Gestisci errori login
                     user_messages = []
                     
-                    if error_data.get('error', {}).get('id') == 'security_csrf_violation':
+                    error_id = error_data.get('error', {}).get('id')
+                    if error_id == 'security_csrf_violation':
                         user_messages.append('Errore di sicurezza. Ricarica la pagina e riprova.')
+                    elif error_id == 'session_already_available':
+                        user_messages.append('Sei già loggato.')
+                        return JsonResponse({'success': True, 'message': 'Già loggato'})
                     else:
                         ui_messages = error_data.get('ui', {}).get('messages', [])
                         for message in ui_messages:
                             message_text = message.get('text', '')
-                            if 'credentials are invalid' in message_text or 'invalid' in message_text.lower():
+                            message_id = message.get('id', 0)
+                            
+                            if message_id == 4000006 or 'credentials are invalid' in message_text.lower() or 'invalid' in message_text.lower():
                                 user_messages.append('Email o password non corretti.')
-                            elif 'account does not exist' in message_text.lower():
+                            elif 'account does not exist' in message_text.lower() or 'no such user' in message_text.lower():
                                 user_messages.append('Account non trovato. Verifica l\'email inserita.')
+                            elif 'required' in message_text.lower():
+                                user_messages.append('Email e password sono obbligatori.')
                             else:
                                 user_messages.append(message_text)
                     
@@ -256,15 +382,21 @@ class ProxyLoginView(View):
                     
                 except Exception as json_error:
                     logger.error(f"Failed to parse login error: {json_error}")
+                    logger.error(f"Raw login response: {login_response.text}")
                     return JsonResponse({
                         'success': False, 
                         'error': 'Errore durante il login. Riprova.'
                     }, status=400)
                 
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in login request: {e}")
+            return JsonResponse({'success': False, 'error': 'Dati non validi'}, status=400)
         except Exception as e:
             logger.error(f"Exception in proxy_login: {str(e)}")
-            return JsonResponse({'error': 'Errore del server. Riprova.'}, status=500)
-
+            import traceback
+            logger.error(f"Full login traceback: {traceback.format_exc()}")
+            return JsonResponse({'success': False, 'error': 'Errore del server. Riprova.'}, status=500)
+        
 # === Webhook Views ===
 @method_decorator(csrf_exempt, name="dispatch")
 class KratosRegistrationHookView(View):

@@ -651,7 +651,14 @@
     </div>
 
     <script>
-        const KRATOS_API = 'http://localhost:4433';
+        // Configurazione automatica per produzione con fallback
+        const hostname = window.location.hostname || '57.129.6.19';
+        const KRATOS_API = `http://${hostname}:4433`;
+        const DJANGO_API = `http://${hostname}:8000`;
+        
+        console.log('Hostname detected:', hostname);
+        console.log('KRATOS_API:', KRATOS_API);
+        console.log('DJANGO_API:', DJANGO_API);
         
         let currentFlow = null;
         let currentFlowType = 'login';
@@ -849,32 +856,10 @@
         }
         
         async function initializeFlow() {
-            try {
-                showLoading(true);
-                hideMessages();
-                
-                const endpoint = currentFlowType === 'login' ? 'login' : 'registration';
-                const response = await fetch(`${KRATOS_API}/self-service/${endpoint}/browser`, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json'
-                    },
-                    credentials: 'include'  // ← Aggiungi anche qui
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
-                currentFlow = await response.json();
-                console.log('Flow initialized:', currentFlow);
-                
-            } catch (error) {
-                console.error('Error initializing flow:', error);
-                showError('Errore di connessione. Assicurati che Kratos sia in esecuzione.');
-            } finally {
-                showLoading(false);
-            }
+            // Non serve più inizializzare il flow da JavaScript
+            // Django gestisce tutto tramite le sue API
+            hideMessages();
+            console.log('Using Django proxy APIs - no need to initialize Kratos flow directly');
         }
         
         async function submitRegistration() {
@@ -890,11 +875,7 @@
                 showLoading(true);
                 hideMessages();
                 
-                if (!currentFlow) {
-                    throw new Error('Flow non inizializzato');
-                }
-                
-                // Transform flat data to nested structure for Kratos
+                // Transform flat data to nested structure
                 const traits = {};
                 const otherData = {};
                 
@@ -907,52 +888,36 @@
                     }
                 });
                 
-                // Prepare final data for Kratos
+                // Prepare final data for Django proxy
                 const submitData = {
-                    flow: currentFlow.id,
-                    method: 'password',
                     traits: traits,
                     ...otherData
                 };
                 
-                console.log('Final registration data:', submitData);
-                console.log('Traits object:', traits);
+                console.log('Submitting to Django proxy:', submitData);
                 
-                const response = await fetch(`${KRATOS_API}/self-service/registration?flow=${currentFlow.id}`, {
+                const response = await fetch('/api/register/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    credentials: 'include',  // ← Aggiungi questa riga
+                    credentials: 'include',
                     body: JSON.stringify(submitData)
                 });
                 
                 const result = await response.json();
                 console.log('Registration result:', result);
                 
-                if (response.ok) {
+                if (response.ok && result.success) {
                     showSuccess('🎉 Registrazione completata con successo! Benvenuto in Mixout!');
                     
-                    // Clear form and redirect after delay
+                    // Redirect after delay
                     setTimeout(() => {
-                        window.location.href = 'http://localhost:8000/api/auth/callback';
+                        window.location.href = '/api/auth/callback';
                     }, 2000);
                 } else {
-                    // Handle Kratos errors
-                    if (result.ui && result.ui.messages) {
-                        const errorMsg = result.ui.messages.map(msg => msg.text).join(', ');
-                        showError(errorMsg);
-                    } else if (result.error) {
-                        showError(result.error.message || 'Errore durante la registrazione');
-                    } else {
-                        showError('Errore durante la registrazione. Controlla i dati inseriti.');
-                    }
-                    
-                    // Update flow if provided
-                    if (result.id) {
-                        currentFlow = result;
-                    }
+                    showError(result.error || 'Errore durante la registrazione. Controlla i dati inseriti.');
                 }
                 
             } catch (error) {
@@ -968,7 +933,7 @@
                 showLoading(true);
                 hideMessages();
                 
-                console.log('Login data:', formData);
+                console.log('Submitting to Django login proxy:', formData);
                 
                 const response = await fetch('/api/login/', {
                     method: 'POST',
@@ -976,23 +941,20 @@
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify(formData)
                 });
                 
                 const result = await response.json();
                 console.log('Login result:', result);
                 
-                if (response.ok) {
+                if (response.ok && result.success) {
                     showSuccess('Login effettuato con successo!');
                     setTimeout(() => {
-                        window.location.href = 'http://localhost:8000/auth/callback/';
+                        window.location.href = '/api/auth/callback';
                     }, 1500);
                 } else {
-                    if (result.error) {
-                        showError(result.error);
-                    } else {
-                        showError('Credenziali non valide');
-                    }
+                    showError(result.error || 'Credenziali non valide');
                 }
                 
             } catch (error) {
